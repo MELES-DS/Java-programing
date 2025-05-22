@@ -8,9 +8,8 @@ import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
-public class MultimediaApp extends JFrame {
+public class Elibrary extends JFrame {
     private JPanel cardPanel;
     private CardLayout cardLayout;
     private List<User> users = new ArrayList<>();
@@ -18,7 +17,6 @@ public class MultimediaApp extends JFrame {
     private List<Media> mediaFiles = new ArrayList<>();
     private List<Request> requests = new ArrayList<>();
     private User loggedInUser;
-    private String previousPanel = "Login";
     private boolean isAdmin = false;
 
     // Main panel controls
@@ -40,11 +38,12 @@ public class MultimediaApp extends JFrame {
     private JButton clearDataButton;
     private JLabel adminFunctionsLabel;
 
+    // User class for storing user/admin data
     static class User implements Serializable {
         private static final long serialVersionUID = 1L;
         String name, fname, phone, email, password;
         boolean active;
-  
+
         User(String name, String fname, String phone, String email, String password) {
             this.name = name;
             this.fname = fname;
@@ -55,6 +54,7 @@ public class MultimediaApp extends JFrame {
         }
     }
 
+    // Media class for storing book/media data
     static class Media implements Serializable {
         private static final long serialVersionUID = 1L;
         String title, name, year, filePath;
@@ -71,6 +71,7 @@ public class MultimediaApp extends JFrame {
         }
     }
 
+    // Request class for handling paid media access requests
     static class Request implements Serializable {
         private static final long serialVersionUID = 1L;
         String userEmail, mediaFilePath;
@@ -85,23 +86,34 @@ public class MultimediaApp extends JFrame {
         }
     }
 
-    public MultimediaApp() {
+    public Elibrary() {
         setTitle("E-Library Application");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 400);
         setLocationRelativeTo(null);
 
-        loadUsers();
-        loadAdmins();
-        loadMedia();
-        loadRequests();
+        // Load data from files
+        loadData("users.dat", users);
+        loadData("admins.dat", admins);
+        loadData("media.dat", mediaFiles);
+        loadData("requests.dat", requests);
         initializeOwnerAdmin();
 
+        // Initialize card layout
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
         add(cardPanel);
 
-        // Login Panel
+        // Add panels to card layout
+        cardPanel.add(createLoginPanel(), "Login");
+        cardPanel.add(createSignUpPanel(false), "UserSignUp");
+        cardPanel.add(createSignUpPanel(true), "AdminSignUp");
+        cardPanel.add(createMainPanel(), "Main");
+
+        cardLayout.show(cardPanel, "Login");
+    }
+
+    private JPanel createLoginPanel() {
         JPanel loginPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
@@ -110,11 +122,14 @@ public class MultimediaApp extends JFrame {
         JPasswordField passwordField = new JPasswordField(20);
         JCheckBox showPasswordCheckBox = new JCheckBox("Show Password");
         JButton loginButton = new JButton("Login");
+        loginButton.setBackground(new Color(0, 123, 255));
         JButton toUserSignUpButton = new JButton("Go to User Sign Up");
+        toUserSignUpButton.setBackground(new Color(0, 191, 255));
+        toUserSignUpButton.setForeground(Color.WHITE);
         JButton backButtonLogin = new JButton("Back");
-        showPasswordCheckBox.addActionListener(_ -> {
-            passwordField.setEchoChar(showPasswordCheckBox.isSelected() ? (char) 0 : '*');
-        });
+        backButtonLogin.setBackground(new Color(255, 0, 0));
+
+        addShowPasswordListener(showPasswordCheckBox, passwordField);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -148,7 +163,6 @@ public class MultimediaApp extends JFrame {
                 if (user.email.equals(email) && user.password.equals(password) && user.active) {
                     loggedInUser = user;
                     isAdmin = false;
-                    previousPanel = "Login";
                     setAdminControlsVisibility(false);
                     cardLayout.show(cardPanel, "Main");
                     emailField.setText("");
@@ -160,7 +174,6 @@ public class MultimediaApp extends JFrame {
                 if (admin.email.equals(email) && admin.password.equals(password) && admin.active) {
                     loggedInUser = admin;
                     isAdmin = true;
-                    previousPanel = "Login";
                     setAdminControlsVisibility(true);
                     cardLayout.show(cardPanel, "Main");
                     emailField.setText("");
@@ -171,178 +184,97 @@ public class MultimediaApp extends JFrame {
             JOptionPane.showMessageDialog(this, "Invalid credentials or inactive account");
         });
 
-        toUserSignUpButton.addActionListener(e -> {
-            previousPanel = "Login";
-            cardLayout.show(cardPanel, "UserSignUp");
-        });
-
+        toUserSignUpButton.addActionListener(e -> cardLayout.show(cardPanel, "UserSignUp"));
         backButtonLogin.addActionListener(e -> System.exit(0));
 
-        // User Sign Up Panel
-        JPanel userSignUpPanel = new JPanel();
-        userSignUpPanel.setLayout(null);
+        return loginPanel;
+    }
 
-        JLabel userNameLabel = new JLabel("Name:");
-        userNameLabel.setBounds(20, 20, 80, 25);
-        JTextArea userNameArea = createInputTextArea();
-        userNameArea.setBounds(120, 20, 200, 25);
+    private JPanel createSignUpPanel(boolean isAdminPanel) {
+        JPanel panel = new JPanel();
+        panel.setLayout(null);
 
-        JLabel userFnameLabel = new JLabel("Father's Name:");
-        userFnameLabel.setBounds(20, 60, 100, 25);
-        JTextArea userFnameArea = createInputTextArea();
-        userFnameArea.setBounds(120, 60, 200, 25);
+        JLabel nameLabel = new JLabel("Name:");
+        nameLabel.setBounds(20, 20, 80, 25);
+        JTextArea nameArea = createInputTextArea();
+        nameArea.setBounds(120, 20, 200, 25);
 
-        JLabel userPhoneLabel = new JLabel("Phone:");
-        userPhoneLabel.setBounds(20, 100, 80, 25);
-        JTextArea userPhoneArea = createInputTextArea();
-        userPhoneArea.setBounds(120, 100, 200, 25);
+        JLabel fnameLabel = new JLabel("Father's Name:");
+        fnameLabel.setBounds(20, 60, 100, 25);
+        JTextArea fnameArea = createInputTextArea();
+        fnameArea.setBounds(120, 60, 200, 25);
 
-        JLabel userEmailLabel = new JLabel("Email:");
-        userEmailLabel.setBounds(20, 140, 80, 25);
-        JTextArea userEmailArea = createInputTextArea();
-        userEmailArea.setBounds(120, 140, 200, 25);
+        JLabel phoneLabel = new JLabel("Phone:");
+        phoneLabel.setBounds(20, 100, 80, 25);
+        JTextArea phoneArea = createInputTextArea();
+        phoneArea.setBounds(120, 100, 200, 25);
 
-        JLabel userPassLabel = new JLabel("Password:");
-        userPassLabel.setBounds(20, 180, 80, 25);
-        JTextArea userPasswordArea = createInputTextArea();
-        userPasswordArea.setBounds(120, 180, 200, 25);
+        JLabel emailLabel = new JLabel("Email:");
+        emailLabel.setBounds(20, 140, 80, 25);
+        JTextArea emailArea = createInputTextArea();
+        emailArea.setBounds(120, 140, 200, 25);
 
-        JCheckBox userShowPasswordCheckBox = new JCheckBox("Show Password");
-        userShowPasswordCheckBox.setBounds(120, 210, 120, 25);
+        JLabel passLabel = new JLabel("Password:");
+        passLabel.setBounds(20, 180, 80, 25);
+        JTextArea passwordArea = createInputTextArea();
+        passwordArea.setBounds(120, 180, 200, 25);
 
-        JButton userSignUpButton = new JButton("Register");
-        userSignUpButton.setBounds(120, 240, 100, 30);
+        JCheckBox showPasswordCheckBox = new JCheckBox("Show Password");
+        showPasswordCheckBox.setBounds(120, 210, 120, 25);
 
-        JButton userToLoginButton = new JButton("Go to Login");
-        userToLoginButton.setBounds(230, 240, 100, 30);
+        JButton signUpButton = new JButton("Register");
+        signUpButton.setBounds(120, 240, 100, 30);
+        signUpButton.setBackground(new Color(0, 123, 255));
+        signUpButton.setForeground(Color.WHITE);
+        JButton toLoginButton = new JButton("Go to Login");
+        toLoginButton.setBounds(230, 240, 100, 30);
+        toLoginButton.setBackground(new Color(40, 167, 69));
+        toLoginButton.setForeground(Color.WHITE);
 
-        userShowPasswordCheckBox.addActionListener(e -> {
-            userPasswordArea.setForeground(userShowPasswordCheckBox.isSelected() ? Color.BLACK : Color.GRAY);
-            userPasswordArea.setText(userPasswordArea.getText());
-        });
+        addShowPasswordListener(showPasswordCheckBox, passwordArea);
 
-        userSignUpButton.addActionListener(e -> {
-            String name = userNameArea.getText().trim();
-            String fname = userFnameArea.getText().trim();
-            String phone = userPhoneArea.getText().trim();
-            String email = userEmailArea.getText().trim();
-            String password = userPasswordArea.getText().trim();
+        signUpButton.addActionListener(e -> {
+            String name = nameArea.getText().trim();
+            String fname = fnameArea.getText().trim();
+            String phone = phoneArea.getText().trim();
+            String email = emailArea.getText().trim();
+            String password = passwordArea.getText().trim();
             if (validateInput(name, fname, phone, email, password)) {
-                users.add(new User(name, fname, phone, email, password));
-                saveUsers();
+                (isAdminPanel ? admins : users).add(new User(name, fname, phone, email, password));
+                if (isAdminPanel)
+                    saveData("admins.dat", admins);
+                else
+                    saveData("users.dat", users);
                 JOptionPane.showMessageDialog(this, "Registered Successfully!");
-                emailField.setText(email);
-                userNameArea.setText("");
-                userFnameArea.setText("");
-                userPhoneArea.setText("");
-                userEmailArea.setText("");
-                userPasswordArea.setText("");
+                nameArea.setText("");
+                fnameArea.setText("");
+                phoneArea.setText("");
+                emailArea.setText("");
+                passwordArea.setText("");
                 cardLayout.show(cardPanel, "Login");
             }
         });
 
-        userToLoginButton.addActionListener(e -> {
-            previousPanel = "UserSignUp";
-            cardLayout.show(cardPanel, "Login");
-        });
+        toLoginButton.addActionListener(e -> cardLayout.show(cardPanel, "Login"));
 
-        userSignUpPanel.add(userNameLabel);
-        userSignUpPanel.add(userNameArea);
-        userSignUpPanel.add(userFnameLabel);
-        userSignUpPanel.add(userFnameArea);
-        userSignUpPanel.add(userPhoneLabel);
-        userSignUpPanel.add(userPhoneArea);
-        userSignUpPanel.add(userEmailLabel);
-        userSignUpPanel.add(userEmailArea);
-        userSignUpPanel.add(userPassLabel);
-        userSignUpPanel.add(userPasswordArea);
-        userSignUpPanel.add(userShowPasswordCheckBox);
-        userSignUpPanel.add(userSignUpButton);
-        userSignUpPanel.add(userToLoginButton);
+        panel.add(nameLabel);
+        panel.add(nameArea);
+        panel.add(fnameLabel);
+        panel.add(fnameArea);
+        panel.add(phoneLabel);
+        panel.add(phoneArea);
+        panel.add(emailLabel);
+        panel.add(emailArea);
+        panel.add(passLabel);
+        panel.add(passwordArea);
+        panel.add(showPasswordCheckBox);
+        panel.add(signUpButton);
+        panel.add(toLoginButton);
 
-        // Admin Sign Up Panel
-        JPanel adminSignUpPanel = new JPanel();
-        adminSignUpPanel.setLayout(null);
+        return panel;
+    }
 
-        JLabel adminNameLabel = new JLabel("Name:");
-        adminNameLabel.setBounds(20, 20, 80, 25);
-        JTextArea adminNameArea = createInputTextArea();
-        adminNameArea.setBounds(120, 20, 200, 25);
-
-        JLabel adminFnameLabel = new JLabel("Father's Name:");
-        adminFnameLabel.setBounds(20, 60, 100, 25);
-        JTextArea adminFnameArea = createInputTextArea();
-        adminFnameArea.setBounds(120, 60, 200, 25);
-
-        JLabel adminPhoneLabel = new JLabel("Phone:");
-        adminPhoneLabel.setBounds(20, 100, 80, 25);
-        JTextArea adminPhoneArea = createInputTextArea();
-        adminPhoneArea.setBounds(120, 100, 200, 25);
-
-        JLabel adminEmailLabel = new JLabel("Email:");
-        adminEmailLabel.setBounds(20, 140, 80, 25);
-        JTextArea adminEmailArea = createInputTextArea();
-        adminEmailArea.setBounds(120, 140, 200, 25);
-
-        JLabel adminPassLabel = new JLabel("Password:");
-        adminPassLabel.setBounds(20, 180, 80, 25);
-        JTextArea adminPasswordArea = createInputTextArea();
-        adminPasswordArea.setBounds(120, 180, 200, 25);
-
-        JCheckBox adminShowPasswordCheckBox = new JCheckBox("Show Password");
-        adminShowPasswordCheckBox.setBounds(120, 210, 120, 25);
-
-        JButton adminSignUpButton = new JButton("Register");
-        adminSignUpButton.setBounds(120, 240, 100, 30);
-
-        JButton adminToLoginButton = new JButton("Go to Login");
-        adminToLoginButton.setBounds(230, 240, 100, 30);
-
-        adminShowPasswordCheckBox.addActionListener(e -> {
-            adminPasswordArea.setForeground(adminShowPasswordCheckBox.isSelected() ? Color.BLACK : Color.GRAY);
-            adminPasswordArea.setText(adminPasswordArea.getText());
-        });
-
-        adminSignUpButton.addActionListener(e -> {
-            String name = adminNameArea.getText().trim();
-            String fname = adminFnameArea.getText().trim();
-            String phone = adminPhoneArea.getText().trim();
-            String email = adminEmailArea.getText().trim();
-            String password = adminPasswordArea.getText().trim();
-            if (validateInput(name, fname, phone, email, password)) {
-                admins.add(new User(name, fname, phone, email, password));
-                saveAdmins();
-                JOptionPane.showMessageDialog(this, "Registered Successfully!");
-                emailField.setText(email);
-                adminNameArea.setText("");
-                adminFnameArea.setText("");
-                adminPhoneArea.setText("");
-                adminEmailArea.setText("");
-                adminPasswordArea.setText("");
-                cardLayout.show(cardPanel, "Login");
-            }
-        });
-
-        adminToLoginButton.addActionListener(e -> {
-            previousPanel = "AdminSignUp";
-            cardLayout.show(cardPanel, "Login");
-        });
-
-        adminSignUpPanel.add(adminNameLabel);
-        adminSignUpPanel.add(adminNameArea);
-        adminSignUpPanel.add(adminFnameLabel);
-        adminSignUpPanel.add(adminFnameArea);
-        adminSignUpPanel.add(adminPhoneLabel);
-        adminSignUpPanel.add(adminPhoneArea);
-        adminSignUpPanel.add(adminEmailLabel);
-        adminSignUpPanel.add(adminEmailArea);
-        adminSignUpPanel.add(adminPassLabel);
-        adminSignUpPanel.add(adminPasswordArea);
-        adminSignUpPanel.add(adminShowPasswordCheckBox);
-        adminSignUpPanel.add(adminSignUpButton);
-        adminSignUpPanel.add(adminToLoginButton);
-
-        // Main Panel
+    private JPanel createMainPanel() {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(null);
 
@@ -351,7 +283,7 @@ public class MultimediaApp extends JFrame {
         titleArea = createInputTextArea();
         titleArea.setBounds(120, 20, 200, 25);
 
-        nameLabel = new JLabel("auther Name:");
+        nameLabel = new JLabel("Author Name:");
         nameLabel.setBounds(20, 60, 80, 25);
         mediaNameArea = createInputTextArea();
         mediaNameArea.setBounds(120, 60, 200, 25);
@@ -371,18 +303,25 @@ public class MultimediaApp extends JFrame {
 
         uploadFileButton = new JButton("Upload books");
         uploadFileButton.setBounds(120, 180, 100, 30);
+        uploadFileButton.setBackground(new Color(0, 123, 255));
         viewUsersButton = new JButton("View Users");
         viewUsersButton.setBounds(120, 220, 100, 30);
+        viewUsersButton.setBackground(new Color(40, 167, 69));
         viewAdminsButton = new JButton("View Admins");
         viewAdminsButton.setBounds(120, 260, 100, 30);
-        viewMediaButton = new JButton("book lists");
+        viewAdminsButton.setBackground(new Color(40, 167, 69));
+        viewMediaButton = new JButton("Book lists");
         viewMediaButton.setBounds(230, 180, 100, 30);
+        viewMediaButton.setBackground(new Color(40, 167, 69));
         viewRequestsButton = new JButton("View Requests");
         viewRequestsButton.setBounds(230, 220, 100, 30);
+        viewRequestsButton.setBackground(new Color(40, 167, 69));
         adminSignUpFromMainButton = new JButton("Admin Sign Up");
         adminSignUpFromMainButton.setBounds(230, 260, 100, 30);
+        adminSignUpFromMainButton.setBackground(new Color(40, 167, 69));
         clearDataButton = new JButton("Clear Data");
         clearDataButton.setBounds(120, 300, 100, 30);
+        clearDataButton.setBackground(new Color(40, 167, 69));
         logoutButtonMain = new JButton("Logout");
         logoutButtonMain.setBounds(230, 300, 100, 30);
         logoutButtonMain.setBackground(new Color(255, 0, 0));
@@ -406,18 +345,32 @@ public class MultimediaApp extends JFrame {
         mainPanel.add(clearDataButton);
         mainPanel.add(logoutButtonMain);
 
-        // Initially hide Title, Name, Year fields and labels
-        titleLabel.setVisible(false);
-        titleArea.setVisible(false);
-        nameLabel.setVisible(false);
-        mediaNameArea.setVisible(false);
-        yearLabel.setVisible(false);
-        yearArea.setVisible(false);
-        typeLabel.setVisible(false);
-        mediaTypeCombo.setVisible(false);
-        adminFunctionsLabel.setVisible(false);
+        uploadFileButton.addActionListener(e -> showUploadDialog());
+        viewUsersButton.addActionListener(e -> showTable(users, "Registered Users", () -> saveData("users.dat", users)));
+        viewAdminsButton.addActionListener(e -> showTable(admins, "Registered Admins", () -> saveData("admins.dat", admins)));
+        viewMediaButton.addActionListener(e -> {
+            JPanel panel = new JPanel(new GridLayout(1, 2));
+            JButton freeButton = new JButton("Free");
+            JButton paidButton = new JButton("Paid");
+            panel.add(freeButton);
+            panel.add(paidButton);
 
-        setAdminControlsVisibility(false);
+            freeButton.addActionListener(e1 -> showMediaTable(mediaFiles.stream()
+                    .filter(m -> !m.isPaid && m.active).collect(Collectors.toList()), isAdmin));
+            paidButton.addActionListener(e1 -> showMediaTable(mediaFiles.stream()
+                    .filter(m -> m.isPaid && m.active).collect(Collectors.toList()), isAdmin));
+
+            JOptionPane.showMessageDialog(this, panel, "Select Media Type", JOptionPane.PLAIN_MESSAGE);
+        });
+        viewRequestsButton.addActionListener(e -> showRequestsTable());
+        adminSignUpFromMainButton.addActionListener(e -> cardLayout.show(cardPanel, "AdminSignUp"));
+        logoutButtonMain.addActionListener(e -> {
+            cardLayout.show(cardPanel, "Login");
+            loggedInUser = null;
+            isAdmin = false;
+            setAdminControlsVisibility(false);
+        });
+        clearDataButton.addActionListener(e -> showClearDataDialog());
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -426,64 +379,7 @@ public class MultimediaApp extends JFrame {
             }
         });
 
-        uploadFileButton.addActionListener(e -> showUploadDialog());
-
-        viewUsersButton.addActionListener(e -> showUsersTable());
-
-        viewAdminsButton.addActionListener(e -> showAdminsTable());
-
-        viewMediaButton.addActionListener(e -> {
-            JPanel panel = new JPanel(new GridLayout(1, 2));
-            JButton freeButton = new JButton("Free");
-            JButton paidButton = new JButton("Paid");
-            panel.add(freeButton);
-            panel.add(paidButton);
-
-            freeButton.addActionListener(e1 -> {
-                List<Media> freeMedia = new ArrayList<>();
-                for (Media media : mediaFiles) {
-                    if (!media.isPaid && media.active) {
-                        freeMedia.add(media);
-                    }
-                }
-                showMediaTable(freeMedia, isAdmin);
-            });
-
-            paidButton.addActionListener(e1 -> {
-                List<Media> paidMedia = new ArrayList<>();
-                for (Media media : mediaFiles) {
-                    if (media.isPaid && media.active) {
-                        paidMedia.add(media);
-                    }
-                }
-                showMediaTable(paidMedia, isAdmin);
-            });
-
-            JOptionPane.showMessageDialog(this, panel, "Select Media Type", JOptionPane.PLAIN_MESSAGE);
-        });
-
-        viewRequestsButton.addActionListener(e -> showRequestsTable());
-
-        adminSignUpFromMainButton.addActionListener(e -> {
-            previousPanel = "Main";
-            cardLayout.show(cardPanel, "AdminSignUp");
-        });
-
-        logoutButtonMain.addActionListener(e -> {
-            cardLayout.show(cardPanel, "Login");
-            loggedInUser = null;
-            isAdmin = false;
-            setAdminControlsVisibility(false);
-        });
-
-        clearDataButton.addActionListener(e -> showClearDataDialog());
-
-        cardPanel.add(loginPanel, "Login");
-        cardPanel.add(userSignUpPanel, "UserSignUp");
-        cardPanel.add(adminSignUpPanel, "AdminSignUp");
-        cardPanel.add(mainPanel, "Main");
-
-        cardLayout.show(cardPanel, "Login");
+        return mainPanel;
     }
 
     private JTextArea createInputTextArea() {
@@ -494,9 +390,25 @@ public class MultimediaApp extends JFrame {
         return textArea;
     }
 
+    private void addShowPasswordListener(JCheckBox checkBox, Component field) {
+        checkBox.addActionListener(e -> {
+            if (field instanceof JPasswordField) {
+                ((JPasswordField) field).setEchoChar(checkBox.isSelected() ? (char) 0 : '*');
+            } else if (field instanceof JTextArea) {
+                ((JTextArea) field).setForeground(checkBox.isSelected() ? Color.BLACK : Color.GRAY);
+            }
+        });
+    }
+
+    private JDialog createDialog(String title, boolean modal) {
+        JDialog dialog = new JDialog(this, title, modal);
+        dialog.setLayout(new GridBagLayout());
+        dialog.setLocationRelativeTo(this);
+        return dialog;
+    }
+
     private void showUploadDialog() {
-        JDialog uploadDialog = new JDialog(this, "Upload books", true);
-        uploadDialog.setLayout(new GridBagLayout());
+        JDialog uploadDialog = createDialog("Upload books", true);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
 
@@ -511,13 +423,13 @@ public class MultimediaApp extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        uploadDialog.add(new JLabel("book title :"), gbc);
+        uploadDialog.add(new JLabel("Book title:"), gbc);
         gbc.gridx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         uploadDialog.add(titleField, gbc);
         gbc.gridx = 0;
         gbc.gridy = 1;
-        uploadDialog.add(new JLabel("auther Name:"), gbc);
+        uploadDialog.add(new JLabel("Author Name:"), gbc);
         gbc.gridx = 1;
         uploadDialog.add(nameField, gbc);
         gbc.gridx = 0;
@@ -544,8 +456,7 @@ public class MultimediaApp extends JFrame {
         chooseFileButton.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             FileNameExtensionFilter filter = new FileNameExtensionFilter(
-                    "Supported Files", "ppt", "pptx", "pdf", "doc", "docx", "mp3", "wav", "mp4", "avi", "jpg", "jpeg",
-                    "png");
+                    "Supported Files", "ppt", "pptx", "pdf", "doc", "docx", "mp3", "wav", "mp4", "avi", "jpg", "jpeg", "png");
             fileChooser.setFileFilter(filter);
             if (fileChooser.showOpenDialog(uploadDialog) == JFileChooser.APPROVE_OPTION) {
                 selectedFile[0] = fileChooser.getSelectedFile();
@@ -570,8 +481,8 @@ public class MultimediaApp extends JFrame {
                 Files.createDirectories(Paths.get(destDir));
                 Files.copy(selectedFile[0].toPath(), Paths.get(destPath), StandardCopyOption.REPLACE_EXISTING);
                 mediaFiles.add(new Media(title, name, year, destPath, isPaid));
-                saveMedia();
-                JOptionPane.showMessageDialog(uploadDialog, "book is uploaded successfully");
+                saveData("media.dat", mediaFiles);
+                JOptionPane.showMessageDialog(uploadDialog, "Book uploaded successfully");
                 uploadDialog.dispose();
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(uploadDialog, "Error uploading file");
@@ -579,16 +490,14 @@ public class MultimediaApp extends JFrame {
         });
 
         uploadDialog.pack();
-        uploadDialog.setLocationRelativeTo(this);
         uploadDialog.setVisible(true);
     }
 
-    private void showUsersTable() {
+    private void showTable(List<User> data, String title, Runnable saveAction) {
         String[] columnNames = { "Name", "Father's Name", "Phone", "Email", "Password", "Delete" };
         DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0);
-        for (User user : users) {
-            Object[] row = { user.name, user.fname, user.phone, user.email, user.password, "Delete" };
-            tableModel.addRow(row);
+        for (User user : data) {
+            tableModel.addRow(new Object[] { user.name, user.fname, user.phone, user.email, user.password, "Delete" });
         }
 
         JTable table = new JTable(tableModel);
@@ -604,61 +513,25 @@ public class MultimediaApp extends JFrame {
             public void mouseClicked(MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
                 if (row >= 0 && table.columnAtPoint(e.getPoint()) == 5) {
-                    showAdminAuthDialog("Delete User", () -> {
-                        users.remove(row);
+                    showAdminAuthDialog("Delete " + title.split(" ")[1], () -> {
+                        data.remove(row);
                         tableModel.removeRow(row);
-                        saveUsers();
-                        JOptionPane.showMessageDialog(MultimediaApp.this, "User deleted successfully");
+                        saveAction.run();
+                        JOptionPane.showMessageDialog(Elibrary.this, title.split(" ")[1] + " deleted successfully");
                     });
                 }
             }
         });
 
         panel.setPreferredSize(new Dimension(500, 300));
-        JOptionPane.showMessageDialog(this, panel, "Registered Users", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private void showAdminsTable() {
-        String[] columnNames = { "Name", "Father's Name", "Phone", "Email", "Password", "Delete" };
-        DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0);
-        for (User admin : admins) {
-            Object[] row = { admin.name, admin.fname, admin.phone, admin.email, admin.password, "Delete" };
-            tableModel.addRow(row);
-        }
-
-        JTable table = new JTable(tableModel);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-        table.getTableHeader().setBackground(new Color(0, 191, 255));
-        JScrollPane scrollPane = new JScrollPane(table);
-
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(scrollPane, BorderLayout.CENTER);
-
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0 && table.columnAtPoint(e.getPoint()) == 5) {
-                    showAdminAuthDialog("Delete Admin", () -> {
-                        admins.remove(row);
-                        tableModel.removeRow(row);
-                        saveAdmins();
-                        JOptionPane.showMessageDialog(MultimediaApp.this, "Admin deleted successfully");
-                    });
-                }
-            }
-        });
-
-        panel.setPreferredSize(new Dimension(500, 300));
-        JOptionPane.showMessageDialog(this, panel, "Registered Admins", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, panel, title, JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void showMediaTable(List<Media> mediaList, boolean allowDelete) {
-        String[] columnNames = { "book Title", "auther Name", "Year", "book list", "Delete" };
+        String[] columnNames = { "Book Title", "Author Name", "Year", "Book List", "Delete" };
         DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0);
         for (Media media : mediaList) {
-            Object[] row = { media.title, media.name, media.year, media.filePath, "Delete" };
-            tableModel.addRow(row);
+            tableModel.addRow(new Object[] { media.title, media.name, media.year, media.filePath, "Delete" });
         }
 
         JTable table = new JTable(tableModel);
@@ -685,8 +558,7 @@ public class MultimediaApp extends JFrame {
                             media.year.toLowerCase().contains(query))
                     .collect(Collectors.toList());
             for (Media media : filteredList) {
-                Object[] row = { media.title, media.name, media.year, media.filePath, "Delete" };
-                tableModel.addRow(row);
+                tableModel.addRow(new Object[] { media.title, media.name, media.year, media.filePath, "Delete" });
             }
         });
 
@@ -700,8 +572,8 @@ public class MultimediaApp extends JFrame {
                             String filePath = (String) tableModel.getValueAt(row, 3);
                             mediaFiles.removeIf(media -> media.filePath.equals(filePath));
                             tableModel.removeRow(row);
-                            saveMedia();
-                            JOptionPane.showMessageDialog(MultimediaApp.this, "book is deleted successfully");
+                            saveData("media.dat", mediaFiles);
+                            JOptionPane.showMessageDialog(Elibrary.this, "Book deleted successfully");
                         });
                     }
                 }
@@ -715,98 +587,19 @@ public class MultimediaApp extends JFrame {
                 int col = table.columnAtPoint(e.getPoint());
                 if (row >= 0 && col == 3) {
                     String filePath = (String) tableModel.getValueAt(row, 3);
-                    Media selectedMedia = null;
-                    for (Media media : mediaFiles) {
-                        if (media.filePath.equals(filePath)) {
-                            selectedMedia = media;
-                            break;
-                        }
-                    }
+                    Media selectedMedia = mediaFiles.stream()
+                            .filter(media -> media.filePath.equals(filePath)).findFirst().orElse(null);
                     if (selectedMedia != null) {
-                        if (!selectedMedia.isPaid) {
-                            File file = new File(filePath);
-                            if (file.exists()) {
-                                try {
-                                    Desktop.getDesktop().open(file);
-                                } catch (IOException ex) {
-                                    JFileChooser fileChooser = new JFileChooser();
-                                    fileChooser.setSelectedFile(new File(file.getName()));
-                                    if (fileChooser.showSaveDialog(MultimediaApp.this) == JFileChooser.APPROVE_OPTION) {
-                                        try {
-                                            Files.copy(file.toPath(), fileChooser.getSelectedFile().toPath(),
-                                                    StandardCopyOption.REPLACE_EXISTING);
-                                            JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                    " downloaded successfully");
-                                        } catch (IOException ex2) {
-                                            JOptionPane.showMessageDialog(MultimediaApp.this, "Error downloading file");
-                                        }
-                                    }
-                                }
-                            } else {
-                                JOptionPane.showMessageDialog(MultimediaApp.this, "File not found");
-                            }
+                        if (!selectedMedia.isPaid || isAdmin) {
+                            openOrDownloadFile(filePath);
                         } else {
-                            if (isAdmin) {
-                                File file = new File(filePath);
-                                if (file.exists()) {
-                                    try {
-                                        Desktop.getDesktop().open(file);
-                                    } catch (IOException ex) {
-                                        JFileChooser fileChooser = new JFileChooser();
-                                        fileChooser.setSelectedFile(new File(file.getName()));
-                                        if (fileChooser
-                                                .showSaveDialog(MultimediaApp.this) == JFileChooser.APPROVE_OPTION) {
-                                            try {
-                                                Files.copy(file.toPath(), fileChooser.getSelectedFile().toPath(),
-                                                        StandardCopyOption.REPLACE_EXISTING);
-                                                JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                        "downloaded successfully");
-                                            } catch (IOException ex2) {
-                                                JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                        "Error downloading file");
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    JOptionPane.showMessageDialog(MultimediaApp.this, "File not found");
-                                }
+                            boolean isApproved = requests.stream()
+                                    .anyMatch(r -> r.userEmail.equals(loggedInUser.email) &&
+                                            r.mediaFilePath.equals(filePath) && r.approved && r.active);
+                            if (isApproved) {
+                                openOrDownloadFile(filePath);
                             } else {
-                                boolean isApproved = false;
-                                for (Request request : requests) {
-                                    if (request.userEmail.equals(loggedInUser.email) &&
-                                            request.mediaFilePath.equals(filePath) &&
-                                            request.approved && request.active) {
-                                        isApproved = true;
-                                        break;
-                                    }
-                                }
-                                if (isApproved) {
-                                    File file = new File(filePath);
-                                    if (file.exists()) {
-                                        try {
-                                            Desktop.getDesktop().open(file);
-                                        } catch (IOException ex) {
-                                            JFileChooser fileChooser = new JFileChooser();
-                                            fileChooser.setSelectedFile(new File(file.getName()));
-                                            if (fileChooser.showSaveDialog(
-                                                    MultimediaApp.this) == JFileChooser.APPROVE_OPTION) {
-                                                try {
-                                                    Files.copy(file.toPath(), fileChooser.getSelectedFile().toPath(),
-                                                            StandardCopyOption.REPLACE_EXISTING);
-                                                    JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                            "downloaded successfully");
-                                                } catch (IOException ex2) {
-                                                    JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                            "Error downloading file");
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        JOptionPane.showMessageDialog(MultimediaApp.this, "File not found");
-                                    }
-                                } else {
-                                    showPaidMediaRequestDialog(filePath);
-                                }
+                                showPaidMediaRequestDialog(filePath);
                             }
                         }
                     }
@@ -815,11 +608,34 @@ public class MultimediaApp extends JFrame {
         });
 
         panel.setPreferredSize(new Dimension(500, 350));
-        JOptionPane.showMessageDialog(this, panel, "book list", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, panel, "Book List", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void openOrDownloadFile(String filePath) {
+        File file = new File(filePath);
+        if (file.exists()) {
+            try {
+                Desktop.getDesktop().open(file);
+            } catch (IOException ex) {
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setSelectedFile(new File(file.getName()));
+                if (fileChooser.showSaveDialog(Elibrary.this) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        Files.copy(file.toPath(), fileChooser.getSelectedFile().toPath(),
+                                StandardCopyOption.REPLACE_EXISTING);
+                        JOptionPane.showMessageDialog(Elibrary.this, "Downloaded successfully");
+                    } catch (IOException ex2) {
+                        JOptionPane.showMessageDialog(Elibrary.this, "Error downloading file");
+                    }
+                }
+            }
+        } else {
+            JOptionPane.showMessageDialog(Elibrary.this, "File not found");
+        }
     }
 
     private void showRequestsTable() {
-        String[] columnNames = { "Name", "User Email", "book list", "Status", "Action", "Delete" };
+        String[] columnNames = { "Name", "User Email", "Book List", "Status", "Action", "Delete" };
         DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0);
         for (Request request : requests) {
             String userName = "Unknown";
@@ -836,8 +652,7 @@ public class MultimediaApp extends JFrame {
                 }
             }
             String status = request.approved ? "Approved" : "Pending";
-            Object[] row = { userName, request.userEmail, request.mediaFilePath, status, "", "Delete" };
-            tableModel.addRow(row);
+            tableModel.addRow(new Object[] { userName, request.userEmail, request.mediaFilePath, status, "", "Delete" });
         }
 
         JTable table = new JTable(tableModel) {
@@ -861,8 +676,8 @@ public class MultimediaApp extends JFrame {
                         showAdminAuthDialog("Delete Request", () -> {
                             requests.remove(row);
                             tableModel.removeRow(row);
-                            saveRequests();
-                            JOptionPane.showMessageDialog(MultimediaApp.this, "Request deleted successfully");
+                            saveData("requests.dat", requests);
+                            JOptionPane.showMessageDialog(Elibrary.this, "Request deleted successfully");
                         });
                     } else if (col == 2 && isAdmin) {
                         String mediaFilePath = (String) tableModel.getValueAt(row, 2);
@@ -874,20 +689,18 @@ public class MultimediaApp extends JFrame {
                             } catch (IOException ex) {
                                 JFileChooser fileChooser = new JFileChooser();
                                 fileChooser.setSelectedFile(new File(requestFile.getName()));
-                                if (fileChooser.showSaveDialog(MultimediaApp.this) == JFileChooser.APPROVE_OPTION) {
+                                if (fileChooser.showSaveDialog(Elibrary.this) == JFileChooser.APPROVE_OPTION) {
                                     try {
                                         Files.copy(requestFile.toPath(), fileChooser.getSelectedFile().toPath(),
                                                 StandardCopyOption.REPLACE_EXISTING);
-                                        JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                "Request file downloaded successfully");
+                                        JOptionPane.showMessageDialog(Elibrary.this, "Request file downloaded successfully");
                                     } catch (IOException ex2) {
-                                        JOptionPane.showMessageDialog(MultimediaApp.this,
-                                                "Error downloading request file");
+                                        JOptionPane.showMessageDialog(Elibrary.this, "Error downloading request file");
                                     }
                                 }
                             }
                         } else {
-                            JOptionPane.showMessageDialog(MultimediaApp.this, "Request file not found");
+                            JOptionPane.showMessageDialog(Elibrary.this, "Request file not found");
                         }
                     }
                 }
@@ -896,12 +709,11 @@ public class MultimediaApp extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setPreferredSize(new Dimension(600, 300));
-        JOptionPane.showMessageDialog(this, scrollPane, "Paid for book Requests", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, scrollPane, "Paid Book Requests", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void showPaidMediaRequestDialog(String filePath) {
-        JDialog dialog = new JDialog(this, "Request Paid book Access", true);
-        dialog.setLayout(new GridBagLayout());
+        JDialog dialog = createDialog("Request Paid Book Access", true);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
 
@@ -915,7 +727,7 @@ public class MultimediaApp extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        dialog.add(new JLabel("pay with account:"), gbc);
+        dialog.add(new JLabel("Pay with account:"), gbc);
         gbc.gridx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         dialog.add(codeField, gbc);
@@ -952,7 +764,7 @@ public class MultimediaApp extends JFrame {
                 Files.createDirectories(Paths.get("Requests"));
                 Files.copy(selectedFile[0].toPath(), Paths.get(destPath), StandardCopyOption.REPLACE_EXISTING);
                 requests.add(new Request(loggedInUser.email, filePath));
-                saveRequests();
+                saveData("requests.dat", requests);
                 JOptionPane.showMessageDialog(dialog, "Request submitted. Awaiting admin approval.");
                 dialog.dispose();
             } catch (IOException ex) {
@@ -961,13 +773,11 @@ public class MultimediaApp extends JFrame {
         });
 
         dialog.pack();
-        dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
 
     private void showClearDataDialog() {
-        JDialog dialog = new JDialog(this, "Clear Data", true);
-        dialog.setLayout(new GridBagLayout());
+        JDialog dialog = createDialog("Clear Data", true);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
 
@@ -977,9 +787,7 @@ public class MultimediaApp extends JFrame {
         JCheckBox showPasswordCheckBox = new JCheckBox("Show Password");
         JButton clearButton = new JButton("Clear Selected Table");
 
-        showPasswordCheckBox.addActionListener(e -> {
-            passwordField.setEchoChar(showPasswordCheckBox.isSelected() ? (char) 0 : '*');
-        });
+        addShowPasswordListener(showPasswordCheckBox, passwordField);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -1004,16 +812,12 @@ public class MultimediaApp extends JFrame {
         dialog.add(showPasswordCheckBox, gbc);
         gbc.gridy = 4;
         dialog.add(clearButton, gbc);
+
         clearButton.addActionListener(_ -> {
             String email = emailField.getText().trim();
             String password = new String(passwordField.getPassword());
-            boolean validAdmin = false;
-            for (User admin : admins) {
-                if (admin.email.equals(email) && admin.password.equals(password) && admin.active) {
-                    validAdmin = true;
-                    break;
-                }
-            }
+            boolean validAdmin = admins.stream()
+                    .anyMatch(a -> a.email.equals(email) && a.password.equals(password) && a.active);
             if (!validAdmin) {
                 JOptionPane.showMessageDialog(dialog, "Invalid admin credentials");
                 return;
@@ -1021,23 +825,23 @@ public class MultimediaApp extends JFrame {
 
             String selectedTable = (String) tableCombo.getSelectedItem();
             int confirm = JOptionPane.showConfirmDialog(dialog,
-                    "Are you sure you want to clear all " + selectedTable + " data?",
-                    "Confirm Clear", JOptionPane.YES_NO_OPTION);
+                    "Are you sure you want to clear all " + selectedTable + " data?", "Confirm Clear",
+                    JOptionPane.YES_NO_OPTION);
 
             if (confirm == JOptionPane.YES_OPTION) {
                 switch (selectedTable) {
                     case "Users":
                         users.clear();
-                        saveUsers();
+                        saveData("users.dat", users);
                         break;
                     case "Admins":
                         admins.clear();
                         initializeOwnerAdmin();
-                        saveAdmins();
+                        saveData("admins.dat", admins);
                         break;
                     case "Requests":
                         requests.clear();
-                        saveRequests();
+                        saveData("requests.dat", requests);
                         break;
                 }
                 JOptionPane.showMessageDialog(dialog, selectedTable + " data cleared successfully");
@@ -1046,7 +850,6 @@ public class MultimediaApp extends JFrame {
         });
 
         dialog.pack();
-        dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
 
@@ -1059,9 +862,7 @@ public class MultimediaApp extends JFrame {
         JPasswordField passwordField = new JPasswordField(20);
         JCheckBox showPasswordCheckBox = new JCheckBox("Show Password");
 
-        showPasswordCheckBox.addActionListener(e -> {
-            passwordField.setEchoChar(showPasswordCheckBox.isSelected() ? (char) 0 : '*');
-        });
+        addShowPasswordListener(showPasswordCheckBox, passwordField);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -1084,27 +885,18 @@ public class MultimediaApp extends JFrame {
         if (result == JOptionPane.OK_OPTION) {
             String email = emailField.getText().trim();
             String password = new String(passwordField.getPassword());
-            for (User admin : admins) {
-                if (admin.email.equals(email) && admin.password.equals(password) && admin.active) {
-                    onSuccess.run();
-                    return;
-                }
+            if (admins.stream().anyMatch(a -> a.email.equals(email) && a.password.equals(password) && a.active)) {
+                onSuccess.run();
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid admin credentials");
             }
-            JOptionPane.showMessageDialog(this, "Invalid admin credentials");
         }
     }
 
     private void initializeOwnerAdmin() {
-        boolean ownerExists = false;
-        for (User admin : admins) {
-            if (admin.email.equals("mele@gmail.com") && admin.active) {
-                ownerExists = true;
-                break;
-            }
-        }
-        if (!ownerExists) {
+        if (!admins.stream().anyMatch(a -> a.email.equals("mele@gmail.com") && a.active)) {
             admins.add(new User("Owner", "Admin", "0912345678", "mele@gmail.com", "MELES"));
-            saveAdmins();
+            saveData("admins.dat", admins);
         }
     }
 
@@ -1125,95 +917,51 @@ public class MultimediaApp extends JFrame {
             JOptionPane.showMessageDialog(this, "Phone must be 10 digits, start with '09', and contain only numbers");
             return false;
         }
-        for (User user : users) {
-            if (user.email.equals(email) && user.active) {
-                JOptionPane.showMessageDialog(this, "Email already registered");
-                return false;
-            }
-        }
-        for (User admin : admins) {
-            if (admin.email.equals(email) && admin.active) {
-                JOptionPane.showMessageDialog(this, "Email already registered");
-                return false;
-            }
+        if (users.stream().anyMatch(u -> u.email.equals(email) && u.active) ||
+                admins.stream().anyMatch(a -> a.email.equals(email) && a.active)) {
+            JOptionPane.showMessageDialog(this, "Email already registered");
+            return false;
         }
         return true;
     }
 
-    private void saveUsers() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("users.dat"))) {
-            oos.writeObject(users);
+    private void saveData(String fileName, List<?> data) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(fileName))) {
+            oos.writeObject(data);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     @SuppressWarnings("unchecked")
-    private void loadUsers() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("users.dat"))) {
-            users = (List<User>) ois.readObject();
+    private <T> void loadData(String fileName, List<T> data) {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(fileName))) {
+            data.clear();
+            data.addAll((List<T>) ois.readObject());
         } catch (FileNotFoundException e) {
-            users = new ArrayList<>();
+            data.clear();
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
 
-    private void saveAdmins() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("admins.dat"))) {
-            oos.writeObject(admins);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void loadAdmins() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("admins.dat"))) {
-            admins = (List<User>) ois.readObject();
-        } catch (FileNotFoundException e) {
-            admins = new ArrayList<>();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void saveMedia() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("media.dat"))) {
-            oos.writeObject(mediaFiles);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void loadMedia() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("media.dat"))) {
-            mediaFiles = (List<Media>) ois.readObject();
-        } catch (FileNotFoundException e) {
-            mediaFiles = new ArrayList<>();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void saveRequests() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("requests.dat"))) {
-            oos.writeObject(requests);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void loadRequests() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("requests.dat"))) {
-            requests = (List<Request>) ois.readObject();
-        } catch (FileNotFoundException e) {
-            requests = new ArrayList<>();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+    private void setAdminControlsVisibility(boolean showAdminFeatures) {
+        titleLabel.setVisible(false);
+        titleArea.setVisible(false);
+        nameLabel.setVisible(false);
+        mediaNameArea.setVisible(false);
+        yearLabel.setVisible(false);
+        yearArea.setVisible(false);
+        typeLabel.setVisible(false);
+        mediaTypeCombo.setVisible(false);
+        adminFunctionsLabel.setVisible(showAdminFeatures);
+        uploadFileButton.setVisible(showAdminFeatures);
+        viewUsersButton.setVisible(showAdminFeatures);
+        viewAdminsButton.setVisible(showAdminFeatures);
+        viewRequestsButton.setVisible(showAdminFeatures);
+        adminSignUpFromMainButton.setVisible(showAdminFeatures);
+        clearDataButton.setVisible(showAdminFeatures);
+        logoutButtonMain.setVisible(true);
     }
 
     class ButtonRenderer extends JButton implements TableCellRenderer {
@@ -1240,13 +988,11 @@ public class MultimediaApp extends JFrame {
             super(checkBox);
             this.tableModel = tableModel;
             button = new JButton();
-            button.addActionListener(_ -> fireEditingStopped());
             button.addActionListener(e -> fireEditingStopped());
         }
 
         @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row,
-                int column) {
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
             this.row = row;
             label = requests.get(row).active ? (requests.get(row).approved ? "Reject" : "Approve") : "";
             button.setText(label);
@@ -1262,8 +1008,8 @@ public class MultimediaApp extends JFrame {
                     request.approved = !request.approved;
                     tableModel.setValueAt(request.approved ? "Approved" : "Pending", row, 3);
                     tableModel.setValueAt("", row, 4);
-                    saveRequests();
-                    JOptionPane.showMessageDialog(MultimediaApp.this,
+                    saveData("requests.dat", requests);
+                    JOptionPane.showMessageDialog(Elibrary.this,
                             "Request " + (request.approved ? "approved" : "rejected") + " successfully");
                 });
             }
@@ -1278,27 +1024,7 @@ public class MultimediaApp extends JFrame {
         }
     }
 
-    private void setAdminControlsVisibility(boolean showAdminFeatures) {
-        titleLabel.setVisible(false);
-        titleArea.setVisible(false);
-        nameLabel.setVisible(false);
-        mediaNameArea.setVisible(false);
-        yearLabel.setVisible(false);
-        yearArea.setVisible(false);
-        typeLabel.setVisible(false);
-        mediaTypeCombo.setVisible(false);
-
-        adminFunctionsLabel.setVisible(showAdminFeatures);
-        uploadFileButton.setVisible(showAdminFeatures);
-        viewUsersButton.setVisible(showAdminFeatures);
-        viewAdminsButton.setVisible(showAdminFeatures);
-        viewRequestsButton.setVisible(showAdminFeatures);
-        adminSignUpFromMainButton.setVisible(showAdminFeatures);
-        clearDataButton.setVisible(showAdminFeatures);
-        logoutButtonMain.setVisible(true);
-    }
-
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new MultimediaApp().setVisible(true));
+        SwingUtilities.invokeLater(() -> new Elibrary().setVisible(true));
     }
 }
